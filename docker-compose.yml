@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - arxiv-mcp
+
+  arxiv-mcp:
+    image: ghcr.io/tejas242/arxiv-mcp:latest
+    container_name: arxiv-mcp
+    restart: always
+    # Since this is an MCP server, it usually communicates via stdio.
+    # When running as a standalone container for a Python client, 
+    # we might need to use the HTTP/SSE version if available, 
+    # or use 'docker run' from the host as described in the MCP docs.
+    # However, to keep it within docker-compose, we can treat it as a tool source.

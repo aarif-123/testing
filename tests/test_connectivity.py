@@ -26,36 +26,36 @@ NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 
-# ── Pretty printing helpers ──────────────────────────────────────
-BOLD = "\033[1m"
-GREEN = "\033[92m"
-RED = "\033[91m"
-YELLOW = "\033[93m"
-CYAN = "\033[96m"
-RESET = "\033[0m"
-CHECK = "✔"
-CROSS = "✘"
-WARN = "⚠"
+# -- Pretty printing helpers --------------------------------------
+BOLD = ""
+GREEN = ""
+RED = ""
+YELLOW = ""
+CYAN = ""
+RESET = ""
+CHECK = "[OK]"
+CROSS = "[FAIL]"
+WARN = "[WARN]"
 
 
 def header(text: str) -> None:
-    print(f"\n{BOLD}{CYAN}{'═' * 60}{RESET}")
-    print(f"{BOLD}{CYAN}  {text}{RESET}")
-    print(f"{BOLD}{CYAN}{'═' * 60}{RESET}")
+    print(f"\n" + "=" * 60)
+    print(f"  {text}")
+    print("=" * 60)
 
 
 def status(ok: bool, label: str, detail: str = "") -> None:
-    icon = f"{GREEN}{CHECK}{RESET}" if ok else f"{RED}{CROSS}{RESET}"
+    icon = CHECK if ok else CROSS
     msg = f"  {icon} {label}"
     if detail:
-        msg += f"  —  {detail}"
+        msg += f"  -  {detail}"
     print(msg)
 
 
 def warn(label: str, detail: str = "") -> None:
-    msg = f"  {YELLOW}{WARN}{RESET} {label}"
+    msg = f"  {WARN} {label}"
     if detail:
-        msg += f"  —  {detail}"
+        msg += f"  -  {detail}"
     print(msg)
 
 
@@ -71,7 +71,7 @@ results = {
 # 1. CHECK ENVIRONMENT VARIABLES
 # ══════════════════════════════════════════════════════════════════
 def check_env_vars() -> bool:
-    header("1 · Environment Variables")
+    header("1 - Environment Variables")
     all_ok = True
 
     env_checks = {
@@ -97,7 +97,7 @@ def check_env_vars() -> bool:
 # 2. TEST SUPABASE
 # ══════════════════════════════════════════════════════════════════
 def test_supabase() -> None:
-    header("2 · Supabase Connectivity & Response")
+    header("2 - Supabase Connectivity & Response")
 
     if not SUPABASE_URL or not SUPABASE_KEY:
         status(False, "Skipped", "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
@@ -177,7 +177,7 @@ def test_supabase() -> None:
         rpc_result = client.rpc(
             "match_paper_chunks",
             {
-                "query_embedding": [0.0] * 1024,  # dummy embedding
+                "query_embedding": [0.0] * 768,  # dummy embedding
                 "match_threshold": 0.99,  # very high = expect 0 results
                 "match_count": 1,
                 "filter_ids": [],
@@ -211,7 +211,7 @@ def test_supabase() -> None:
 # 3. TEST NEO4J
 # ══════════════════════════════════════════════════════════════════
 def test_neo4j() -> None:
-    header("3 · Neo4j Connectivity & Response")
+    header("3 - Neo4j Connectivity & Response")
 
     if not NEO4J_URI or not NEO4J_USER or not NEO4J_PASSWORD:
         status(False, "Skipped", "Missing NEO4J_URI, NEO4J_USER, or NEO4J_PASSWORD")
@@ -426,8 +426,8 @@ def print_summary() -> None:
     sb_ok = sb == "OK"
     n4_ok = n4 == "OK"
 
-    status(sb_ok, f"Supabase  →  {sb}")
-    status(n4_ok, f"Neo4j     →  {n4}")
+    status(sb_ok, f"Supabase  ->  {sb}")
+    status(n4_ok, f"Neo4j     ->  {n4}")
 
     print()
     if sb_ok and n4_ok:
@@ -448,7 +448,7 @@ def print_summary() -> None:
 # MAIN
 # ══════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
-    print(f"\n{BOLD}🔌 Supabase & Neo4j Connectivity Test{RESET}")
+    print(f"\nSupabase & Neo4j Connectivity Test")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     check_env_vars()

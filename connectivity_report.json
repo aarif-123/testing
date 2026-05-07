@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-04-05T22:15:02.646166+00:00",
+  "timestamp": "2026-04-13T19:09:35.003008+00:00",
   "supabase": {
     "status": "OK",
     "details": {
-      "client_creation_ms": 530.8,
-      "rest_status": 200,
-      "rest_latency_ms": 1112.7,
-      "db_latency_ms": 843.1,
+      "client_creation_ms": 614.8,
+      "rest_status": 401,
+      "rest_latency_ms": 839.5,
+      "db_latency_ms": 698.8,
       "rpc_works": false,
       "rpc_note": "{'message': 'different vector dimensions 768 and 1024', 'code': '22000', 'hint': None, 'details': None}"
     }
@@ -14,11 +14,11 @@
   "neo4j": {
     "status": "OK",
     "details": {
-      "driver_creation_ms": 1476.0,
-      "connectivity_ms": 1476.0,
+      "driver_creation_ms": 2221.6,
+      "connectivity_ms": 2221.6,
       "server_address": "34.126.171.25:7687",
       "protocol_version": "(6, 0)",
-      "ping_ms": 148.9,
+      "ping_ms": 191.3,
       "total_nodes": 196875,
       "total_relationships": 398961,
       "labels": [
@@ -34,8 +34,7 @@
         "PUBLISHED_IN_YEAR",
         "CITES",
         "WROTE"
-      ],
-      "publication_count": 111896
+      ]
     }
   }
 }

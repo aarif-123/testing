@@ -13,3 +13,7 @@ __pycache__/
 .vscode/
 ingestion/dblp-v10.csv
 ingestion/paper_chunks_rows.csv
+.gemini/
+.agent/
+scratch/
+graphify-out/

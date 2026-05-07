@@ -1,0 +1,208 @@
+/* ═══════════════════════════════════════════════
+   AETHER v7.0 — RESEARCHER PRODUCTIVITY STYLES
+   Reading Queue, Citations, Workflows, Paper Actions
+   ═══════════════════════════════════════════════ */
+
+/* ── READING QUEUE CARDS ── */
+.rq-card {
+    background: var(--bg-paper);
+    border: 1px solid var(--surface-glass-border);
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.rq-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: var(--gradient-primary);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.rq-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.rq-card:hover::before { opacity: 1; }
+.rq-card.read { opacity: 0.6; }
+.rq-card.read .rq-title { text-decoration: line-through; }
+.rq-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.rq-priority {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+    font-family: var(--font-mono);
+}
+.rq-remove {
+    width: 22px; height: 22px; border: none; background: none;
+    color: var(--text-muted); cursor: pointer; font-size: 16px;
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: all 0.2s;
+}
+.rq-card:hover .rq-remove { opacity: 0.7; }
+.rq-remove:hover { opacity: 1 !important; color: var(--accent-red); background: rgba(248,113,113,0.1); }
+.rq-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.4; }
+.rq-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 8px; }
+.rq-domain {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    background: rgba(99,102,241,0.12); color: var(--primary-light);
+    border-radius: 6px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 10px;
+}
+.rq-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.rq-btn {
+    flex: 1; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--surface-glass-border);
+    background: rgba(99,102,241,0.06); color: var(--text-secondary);
+    font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: var(--font-sans); transition: all 0.2s;
+}
+.rq-btn:hover { background: rgba(99,102,241,0.12); border-color: var(--primary); color: var(--primary-light); }
+.rq-select {
+    padding: 5px 8px; border-radius: 8px; font-size: 11px;
+    background: var(--bg-tertiary); color: var(--text-secondary);
+    border: 1px solid var(--surface-glass-border);
+    font-family: var(--font-sans); cursor: pointer; outline: none;
+}
+.rq-select:focus { border-color: var(--primary); }
+
+/* ── CITATION CARDS ── */
+.cite-card {
+    background: var(--bg-paper);
+    border: 1px solid var(--surface-glass-border);
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.cite-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.cite-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.cite-card:hover::before { opacity: 1; }
+.cite-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; line-height: 1.4; }
+.cite-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 8px; }
+.cite-preview {
+    font-size: 11px; color: var(--text-tertiary); line-height: 1.5;
+    padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 8px;
+    border-left: 3px solid var(--accent-cyan); margin-top: 10px;
+    font-family: var(--font-mono);
+}
+
+/* ── WORKFLOW CARDS ── */
+.wf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+.wf-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 20px;
+    background: var(--bg-paper);
+    border: 1px solid var(--surface-glass-border);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+.wf-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #6366f1, #f59e0b);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.wf-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(99,102,241,0.3);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+}
+.wf-card:hover::before { opacity: 1; }
+.wf-icon { font-size: 28px; flex-shrink: 0; }
+.wf-info { flex: 1; min-width: 0; }
+.wf-name { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+.wf-desc { font-size: 12px; color: var(--text-muted); }
+.wf-steps-count {
+    font-size: 10px; font-family: var(--font-mono); color: var(--text-muted);
+    background: var(--bg-tertiary); padding: 3px 10px; border-radius: 20px;
+    white-space: nowrap;
+}
+
+/* ── ACTIVE WORKFLOW PANEL ── */
+.active-wf-panel {
+    margin: 0 auto; max-width: 840px; width: 100%;
+    padding: 0 24px;
+}
+.wf-panel-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; margin-bottom: 8px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(245,158,11,0.06));
+    border: 1px solid rgba(99,102,241,0.15);
+    border-radius: 14px;
+}
+.wf-panel-icon { font-size: 20px; }
+.wf-panel-title { flex: 1; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.wf-panel-close {
+    width: 28px; height: 28px; border: none; background: none;
+    color: var(--text-muted); cursor: pointer; font-size: 18px;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+.wf-panel-close:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.wf-steps-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+.wf-step-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--surface-glass-border);
+    background: rgba(99,102,241,0.04);
+    color: var(--text-secondary); font-size: 12.5px;
+    font-family: var(--font-sans); cursor: pointer;
+    text-align: left; transition: all 0.2s;
+}
+.wf-step-btn:hover {
+    background: rgba(99,102,241,0.1);
+    border-color: var(--primary);
+    color: var(--primary-light);
+    transform: translateX(4px);
+}
+.wf-step-btn.wf-step-used {
+    opacity: 0.5;
+    border-color: rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.06);
+}
+.wf-step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(99,102,241,0.15); color: var(--primary-light);
+    font-size: 11px; font-weight: 700; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+}
+.wf-step-text { flex: 1; line-height: 1.4; }
+
+/* ── PAPER ACTION BAR (Queue / Cite buttons on cards) ── */
+.paper-action-bar {
+    display: flex; gap: 6px; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+}
+.pa-btn {
+    flex: 1; padding: 5px 10px; border-radius: 8px;
+    border: 1px solid var(--surface-glass-border);
+    background: rgba(99,102,241,0.04);
+    color: var(--text-muted); font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: var(--font-sans);
+    transition: all 0.2s; text-align: center;
+}
+.pa-btn:hover {
+    background: rgba(99,102,241,0.1);
+    border-color: rgba(99,102,241,0.3);
+    color: var(--primary-light);
+    transform: translateY(-1px);
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+    .wf-grid { grid-template-columns: 1fr; }
+}

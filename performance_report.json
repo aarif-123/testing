@@ -1,0 +1,127 @@
+{
+  "timestamp": "2026-04-14T01:10:03.772468",
+  "summary": {
+    "total": 13,
+    "success": 13,
+    "avg_ms": 6907.6834923068345
+  },
+  "detailed_results": [
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 10060.628500003077,
+      "success": true,
+      "error": null,
+      "request_id": "req_0c4576d4",
+      "route": "rag"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 12685.552699993423,
+      "success": true,
+      "error": null,
+      "request_id": "req_ea7c84d1",
+      "route": "deep_research"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 14530.614600000263,
+      "success": true,
+      "error": null,
+      "request_id": "req_401a6246",
+      "route": "compare"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 617.9191999981413,
+      "success": true,
+      "error": null,
+      "request_id": "req_053e9f17",
+      "route": "entity_lookup"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 15991.010100005951,
+      "success": true,
+      "error": null,
+      "request_id": "req_af4315a0",
+      "route": "structured"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 9627.24559999333,
+      "success": true,
+      "error": null,
+      "request_id": "req_2432105d",
+      "route": "timeline"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 9926.654099996085,
+      "success": true,
+      "error": null,
+      "request_id": "req_267cf6ec",
+      "route": "survey"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 9207.662900000287,
+      "success": true,
+      "error": null,
+      "request_id": "req_0a7f6a1d",
+      "route": "rag"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 5748.904899999616,
+      "success": true,
+      "error": null,
+      "request_id": "req_09de18f9",
+      "route": "trending"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 816.9254000022192,
+      "success": true,
+      "error": null,
+      "request_id": "req_8cd1f5f8",
+      "route": "chitchat"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 13.156799999705981,
+      "success": true,
+      "error": null,
+      "request_id": "req_fabe1fb5",
+      "route": "rag"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 279.3295000010403,
+      "success": true,
+      "error": null,
+      "request_id": "req_b43ec184",
+      "route": "deep_research"
+    },
+    {
+      "endpoint": "/api/research",
+      "status": 200,
+      "latency_ms": 294.2810999957146,
+      "success": true,
+      "error": null,
+      "request_id": "req_ebe51ac4",
+      "route": "compare"
+    }
+  ]
+}

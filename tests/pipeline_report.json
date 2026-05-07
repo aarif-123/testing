@@ -1,0 +1,19 @@
+{
+  "stages": {
+    "1_environment": "OK",
+    "2_embedding": "OK",
+    "3_ocr": "OK",
+    "4_schema": "OK",
+    "5_ingest": "OK",
+    "6_retrieval": "OK"
+  },
+  "overall": "PASS",
+  "timings": {
+    "stage1_env": "0ms",
+    "stage2_embed": "99413ms",
+    "stage3_ocr": "0ms",
+    "stage4_schema": "6853ms",
+    "stage5_ingest": "11577ms",
+    "stage6_retrieval": "2061ms"
+  }
+}

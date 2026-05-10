@@ -96,13 +96,17 @@ class DualPool:
         self.supabase, self.async_supabase = await self._connect_supabase(
             settings.SUPABASE_URL, settings.SUPABASE_KEY, "[StoreA]"
         )
-        self.neo4j = await self._connect_neo4j(
-            settings.NEO4J_URI, 
-            settings.NEO4J_USER, 
-            settings.NEO4J_PASSWORD, 
-            "[StoreA]"
-        )
-        self.neo4j_ok = self.neo4j is not None
+        if settings.NEO4J_ENABLED:
+            self.neo4j = await self._connect_neo4j(
+                settings.NEO4J_URI, 
+                settings.NEO4J_USER, 
+                settings.NEO4J_PASSWORD, 
+                "[StoreA]"
+            )
+            self.neo4j_ok = self.neo4j is not None
+        else:
+            log.info("Neo4j [StoreA] is disabled.")
+            self.neo4j_ok = False
 
         # Init Store B
         if settings.STORE_B_ENABLED:
@@ -112,7 +116,7 @@ class DualPool:
                     settings.ARXIV_SUPABASE_KEY, 
                     "[StoreB]"
                 )
-            if settings.ARXIV_NEO4J_URI:
+            if settings.NEO4J_ENABLED and settings.ARXIV_NEO4J_URI:
                 self.arxiv_neo4j = await self._connect_neo4j(
                     settings.ARXIV_NEO4J_URI,
                     settings.ARXIV_NEO4J_USER,
@@ -120,6 +124,10 @@ class DualPool:
                     "[StoreB]",
                 )
                 self.arxiv_neo4j_ok = self.arxiv_neo4j is not None
+            else:
+                if not settings.NEO4J_ENABLED:
+                    log.info("Neo4j [StoreB] is disabled.")
+                self.arxiv_neo4j_ok = False
             self.store_b_ok = self.arxiv_supabase is not None
             if self.store_b_ok:
                 status = "operational" if self.arxiv_neo4j_ok else "degraded"
@@ -138,24 +146,51 @@ class DualPool:
         )
 
     async def close(self) -> None:
+        """Gracefully close all connections, handling potential loop shutdown issues."""
+        log.info("Closing DualPool connections...")
+        
+        # 1. Neo4j Store A
         if self.neo4j:
-            await self.neo4j.close()
+            try:
+                await self.neo4j.close()
+                log.debug("Neo4j StoreA closed.")
+            except Exception as e:
+                log.debug(f"Neo4j StoreA close failed (possibly loop closed): {e}")
+
+        # 2. Neo4j Store B
         if self.arxiv_neo4j:
-            await self.arxiv_neo4j.close()
+            try:
+                await self.arxiv_neo4j.close()
+                log.debug("Neo4j StoreB closed.")
+            except Exception as e:
+                log.debug(f"Neo4j StoreB close failed: {e}")
+
+        # 3. Supabase Sessions
         if self.async_supabase:
             try:
                 await self.async_supabase.auth.sign_out()
-            except Exception as e:
-                log.debug(f"Supabase StoreA sign_out failed: {e}")
+            except Exception:
+                pass
+        
         if self.arxiv_async_supabase:
             try:
                 await self.arxiv_async_supabase.auth.sign_out()
-            except Exception as e:
-                log.debug(f"Supabase StoreB sign_out failed: {e}")
+            except Exception:
+                pass
+
+        # 4. HTTP Clients
         if self.groq_http:
-            await self.groq_http.aclose()
+            try:
+                await self.groq_http.aclose()
+            except Exception:
+                pass
+                
         if self.embed_http:
-            await self.embed_http.aclose()
+            try:
+                await self.embed_http.aclose()
+            except Exception:
+                pass
+                
         log.info("DualPool closed")
 
 # Global instances

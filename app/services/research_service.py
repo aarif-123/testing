@@ -9,9 +9,21 @@ from ..core.models import QueryPlan, ConversationRequest
 from ..core.exceptions import EmbeddingError, LLMError
 from .vector_service import vector_search
 from .embedding import create_embedding
+from .critic_service import critic_service
+from .graph_service import generate_mermaid_graph
+from .web_search_service import web_search_service
+from ..utils.prompts import (
+    grounded_prompt, 
+    gap_analysis_prompt, 
+    methodology_validation_prompt, 
+    survey_prompt, 
+    timeline_prompt,
+    compare_prompt
+)
 
 
 class ResearchService:
+    """Orchestrates the agentic research loop (Plan-Execute-Critique)."""
     """The 'Brain Pipeline' Orchestrator suggested by senior mentor."""
 
     async def execute_plan(
@@ -116,7 +128,6 @@ class ResearchService:
         # 3b. Specialized Route: compare (Side-by-side paper comparison)
         if plan.route == "compare":
             from .graph_service import retrieve_graph_papers
-            from ..utils.prompts import compare_prompt
             from .llm import groq_chat
             log.info(f"[{rid}] Routing to COMPARE")
             anchors = plan.graph_anchors or []
@@ -230,15 +241,20 @@ class ResearchService:
                             if parsed_detail.get("abstract"):
                                 temp_papers[i]["abstract"] = parsed_detail["abstract"]
 
-                ingest_tasks = [ingest_paper_to_store_b(p) for p in temp_papers]
-                for t in ingest_tasks:
-                    asyncio.create_task(t)
+                if settings.AUTO_INGEST_ARXIV:
+                    ingest_tasks = [ingest_paper_to_store_b(p) for p in temp_papers]
+                    for t in ingest_tasks:
+                        asyncio.create_task(t)
+                else:
+                    log.debug(f"[{rid}] Auto-ingestion disabled by settings.")
                 return temp_papers, logs
             except Exception as e:
                 log.error(f"MCP failed: {e}")
                 return [], []
 
         async def fetch_vector_data():
+            if not req.workflow_config.use_vector_db:
+                return []
             try:
                 log.debug(f"[{rid}] Generating embedding...")
                 e_t0 = time.time()
@@ -310,7 +326,7 @@ class ResearchService:
         pdf_only_mode = bool(req.session_id)
 
         if plan.route not in ("chitchat", "trending", "entity_lookup") \
-           and not pdf_only_mode:
+           and not pdf_only_mode and req.workflow_config.use_mcp_fetch:
             mcp_run = True
             tasks_to_run.append(fetch_mcp_data())
             mcp_future_idx = 4
@@ -401,7 +417,7 @@ class ResearchService:
             chunks, user_context_str, session_papers_list = [], "", []
 
         structured = []  # ensure always defined for mcp_stats below
-        if not chunks and not graph_nodes and not mcp_run and plan.route != "chitchat" and not pdf_only_mode:
+        if not chunks and not graph_nodes and not mcp_run and plan.route != "chitchat" and not pdf_only_mode and req.workflow_config.fallback_allowed:
             log.info(f"[{rid}] No local evidence. Triggering ArXiv Fallback...")
             mcp_run = True
             structured, mcp_logs = await fetch_mcp_data()
@@ -413,14 +429,18 @@ class ResearchService:
         elif not chunks and not graph_nodes and not pdf_only_mode:
             warning = "No relevant evidence found in local stores."
 
-        # Final Answer Synthesis (Optimized with heavy model selection)
-        from .llm import groq_chat
-        model = settings.HEAVY_MODEL if req.use_heavy else settings.REASON_MODEL
-        final_query_context = f"{user_context_str}\n\nORIGINAL QUERY:\n{query}" if user_context_str else query
-        from ..utils.prompts import grounded_prompt
-        prompt = grounded_prompt(final_query_context, chunks, graph_nodes)
-        msgs = [{"role": "system", "content": prompt}] + [{"role": m.role, "content": m.content} for m in req.messages]
-        
+        # --- TEMPORAL ALIGNMENT CHECK ---
+        import re
+        year_match = re.search(r'\b(202[0-9]|20[3-9][0-9])\b', query)
+        if year_match:
+            target_year = year_match.group(1)
+            found_target_year = any(str(p.get("year", "")) == target_year for p in graph_nodes)
+            if not found_target_year:
+                log.warning(f"[{rid}] Temporal Gap Detected: Requested {target_year}, but no papers from that year found.")
+                warning = f"⚠️ TEMPORAL GAP: No research from {target_year} was found in the database. Using older papers as background context."
+                # Inject a system message to force the AI to acknowledge the gap
+                msgs.insert(1, {"role": "system", "content": f"CRITICAL: The user specifically asked for {target_year} benchmarks/data, but your retrieval found ZERO papers from {target_year}. You MUST state this gap clearly and ask for permission to proceed with older data."})
+
         try:
             llm_t0 = time.time()
             log.debug(f"[{rid}] Synthesizing answer with {model}...")
@@ -428,6 +448,79 @@ class ResearchService:
             latency_metrics["llm_ms"] = int((time.time() - llm_t0) * 1000)
         except LLMError as e:
             raise HTTPException(502, f"Generation failed: {e}")
+
+        # --- AGENTIC CRITIC LOOP (Phase 1) ---
+        if req.verify and plan.route not in ("chitchat", "trending", "entity_lookup") and not pdf_only_mode:
+            critic_res = await critic_service.evaluate_research(
+                query=query,
+                chunks=chunks,
+                nodes=graph_nodes,
+                draft=answer
+            )
+            
+            if critic_res.get("re_plan_required") and critic_res.get("confidence_score", 1.0) < 0.7:
+                suggestion = critic_res.get("suggestion")
+                log.info(f"[{rid}] CRITIC DETECTED GAPS: {critic_res.get('detected_gaps')}. Suggestion: {suggestion}")
+                
+                # 1. Re-plan based on suggestion
+                from .planning_service import plan_query
+                new_plan = await plan_query(f"{query} (Additional focus: {suggestion})", context=f"Initial answer: {answer[:300]}...")
+                
+                # 2. Fetch additional data
+                log.info(f"[{rid}] Re-executing with NEW PLAN: route={new_plan.route}")
+                # For simplicity in this first iteration, we just fetch additional vector and graph data
+                # but we could call execute_plan recursively with a depth limit.
+                
+                extra_embedding = await create_embedding(" ".join(new_plan.vector_keywords))
+                extra_chunks = await vector_search(
+                    embedding=extra_embedding,
+                    min_similarity=req.min_similarity,
+                    match_count=3,
+                    query_text=new_plan.standalone_query
+                )
+                
+                from .graph_service import retrieve_graph_papers
+                extra_nodes = await retrieve_graph_papers(keywords=new_plan.graph_anchors, limit=3)
+                
+                # Deduplicate and append
+                existing_chunk_texts = {c.get("chunk") for c in chunks}
+                for ec in extra_chunks:
+                    if ec.get("chunk") not in existing_chunk_texts:
+                        chunks.append(ec)
+                
+                existing_node_ids = {p.get("id") or p.get("research_id") for p in graph_nodes}
+                for en in extra_nodes:
+                    nid = en.get("id") or en.get("research_id")
+                    if nid not in existing_node_ids:
+                        graph_nodes.append(en)
+                
+                # ── Step 2.5: Web Discovery (New 2026 Phase) ──────
+                log.info(f"[{rid}] Triggering Web Discovery for: {suggestion}")
+                web_results = await web_search_service.search(suggestion)
+                for w in web_results:
+                    chunks.append({
+                        "chunk": f"WEB DISCOVERY: {w['content']}",
+                        "title": w['title'],
+                        "url": w['url'],
+                        "similarity": w['score'],
+                        "source": "web"
+                    })
+                # ──────────────────────────────────────────────────
+                
+                # 3. Final Re-Synthesis
+                log.info(f"[{rid}] Re-synthesizing final answer after critic feedback...")
+                if new_plan.route == "gap_analysis":
+                    prompt = gap_analysis_prompt(query, chunks, graph_nodes)
+                else:
+                    prompt = grounded_prompt(query, chunks, graph_nodes)
+                
+                msgs = [{"role": "system", "content": prompt}] + [
+                    {"role": m.role, "content": m.content} for m in req.messages
+                ]
+                answer = await groq_chat(msgs, model, temperature=0.0, max_tokens=3500)
+                warning = f"{warning or ''} (Refined after quality check)".strip()
+
+        # --- END CRITIC LOOP ---
 
         if plan.vector_keywords:
             from .user_graph import user_graph
@@ -441,7 +534,10 @@ class ResearchService:
             "request_id": rid,
             "answer": answer,
             "route": plan.route,
-            "plan": {"standalone_query": plan.standalone_query, "reasoning_path": plan.reasoning_path},
+            "plan": {
+                "standalone_query": plan.standalone_query,
+                "reasoning_path": plan.reasoning_path
+            },
             "source_nodes": {
                 "papers": [
                     {
@@ -455,7 +551,13 @@ class ResearchService:
                     } for p in graph_nodes
                 ],
                 "evidence_chunks": [
-                    {"chunk": c.get("chunk"), "title": c.get("title"), "score": round(c.get("score" if "score" in c else "similarity") or 0, 3)} for c in chunks
+                    {
+                        "chunk": c.get("chunk"),
+                        "title": c.get("title"),
+                        "score": round(
+                            c.get("score" if "score" in c else "similarity") or 0, 3
+                        )
+                    } for c in chunks
                 ]
             },
             "latency_ms": total_latency,
@@ -464,6 +566,7 @@ class ResearchService:
             "confidence_score": round(min(1.0, (len(chunks) * 0.15 + len(graph_nodes) * 0.1)), 2),
             "warning": warning,
             "session_id": req.session_id,
+            "mermaid_graph": generate_mermaid_graph(graph_nodes),
             "mcp_stats": {"used": mcp_run, "found": len(structured) if 'structured' in locals() and structured else 0}
         }
         await cache.set_cache("response", ck, res)
@@ -486,7 +589,6 @@ class ResearchService:
         """
         import json as _json
         from .llm import groq_chat_stream
-        from ..utils.prompts import grounded_prompt
 
         # Run full retrieval pipeline (re-use execute_plan logic up to LLM call)
         # We call the non-streaming execute_plan but intercept before LLM synthesis.
@@ -515,6 +617,8 @@ class ResearchService:
         chunks = []
 
         async def _fetch_vector():
+            if not req.workflow_config.use_vector_db:
+                return []
             try:
                 e_t0 = time.time()
                 emb = await create_embedding(
@@ -604,7 +708,12 @@ class ResearchService:
                     enriched_results = await asyncio.gather(*tasks, return_exceptions=True)
                     for i, res in enumerate(enriched_results):
                         if not isinstance(res, Exception) and res:
-                            res_txt = str(res)
+                            # Safely extract text from MCP response
+                            if hasattr(res, 'content') and isinstance(res.content, list) and res.content:
+                                res_txt = res.content[0].text if hasattr(res.content[0], 'text') else str(res.content[0])
+                            else:
+                                res_txt = str(res)
+                                
                             parsed_detail = arxiv_mcp.format_for_db(res_txt)
                             if parsed_detail.get("abstract"):
                                 temp_papers[i]["abstract"] = parsed_detail["abstract"]
@@ -657,9 +766,12 @@ class ResearchService:
                         elif isinstance(read_res, str):
                             first_paper_deep_text = read_res
 
-                # Fire off the deep ingestion for all papers in the background
-                for p in temp_papers:
-                    asyncio.create_task(background_mcp_ingest(p))
+                # Fire off the deep ingestion for all papers in the background if enabled
+                if settings.AUTO_INGEST_ARXIV:
+                    for p in temp_papers:
+                        asyncio.create_task(background_mcp_ingest(p))
+                else:
+                    log.debug("[stream] Auto-ingestion disabled by settings.")
                 
                 return temp_papers, first_paper_deep_text
             except Exception as e:
@@ -668,7 +780,7 @@ class ResearchService:
 
         pdf_only = bool(req.session_id)
         tasks = [_fetch_vector(), _fetch_graph(), _fetch_user_ctx(), _fetch_session()]
-        run_mcp = plan.route not in ("chitchat", "trending", "entity_lookup") and not pdf_only
+        run_mcp = plan.route not in ("chitchat", "trending", "entity_lookup") and not pdf_only and req.workflow_config.use_mcp_fetch
         if run_mcp:
             tasks.append(_fetch_mcp())
 
@@ -717,10 +829,32 @@ class ResearchService:
                 c["chunk"] = c["chunk"][:6000] + "..."
         model = settings.HEAVY_MODEL if req.use_heavy else settings.REASON_MODEL
         final_query = f"{user_ctx}\n\nORIGINAL QUERY:\n{query}" if user_ctx else query
-        prompt = grounded_prompt(final_query, capped_chunks, graph_nodes)
+        if plan.route == "gap_analysis":
+            prompt = gap_analysis_prompt(final_query, capped_chunks, graph_nodes)
+        elif plan.route == "methodology_validation":
+            prompt = methodology_validation_prompt(final_query, capped_chunks, graph_nodes)
+        elif plan.route == "survey":
+            prompt = survey_prompt(final_query, capped_chunks, graph_nodes)
+        elif plan.route == "timeline":
+            prompt = timeline_prompt(final_query, capped_chunks, graph_nodes)
+        else:
+            prompt = grounded_prompt(final_query, capped_chunks, graph_nodes)
+        
         msgs = [{"role": "system", "content": prompt}] + [
             {"role": m.role, "content": m.content} for m in req.messages
         ]
+
+        # --- TEMPORAL ALIGNMENT CHECK ---
+        import re
+        year_match = re.search(r'\b(202[0-9]|20[3-9][0-9])\b', query)
+        if year_match:
+            target_year = year_match.group(1)
+            found_target_year = any(str(p.get("year", "")) == target_year for p in graph_nodes)
+            if not found_target_year:
+                log.warning(f"[{rid}] [stream] Temporal Gap Detected: Requested {target_year}, but no papers from that year found.")
+                warning = f"⚠️ TEMPORAL GAP: No research from {target_year} was found in the database. Using older papers as background context."
+                # Inject a system message to force the AI to acknowledge the gap
+                msgs.insert(1, {"role": "system", "content": f"CRITICAL: The user specifically asked for {target_year} benchmarks/data, but your retrieval found ZERO papers from {target_year}. You MUST state this gap clearly and ask for permission to proceed with older data."})
 
         # --- Send metadata event first ---
         retrieval_latency = int((time.time() - t0) * 1000)
@@ -756,6 +890,7 @@ class ResearchService:
             "retrieval_ms": retrieval_latency,
             "warning": warning,
             "session_id": req.session_id,
+            "mermaid_graph": generate_mermaid_graph(graph_nodes),
         }
         yield f"data: {_json.dumps(meta_event)}\n\n"
 

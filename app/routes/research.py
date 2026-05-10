@@ -11,6 +11,7 @@ from ..core.logging_config import log
 from ..utils.ratelimit import check_rate_limit
 from ..services.planning_service import plan_query
 from ..services.research_service import research_service
+from ..services.citation_service import citation_service
 from ..utils.cache import get_cache, cache_key
 
 router = APIRouter(tags=["Research"])
@@ -221,4 +222,25 @@ async def end_session(session_id: str):
     """End a session and clean up all associated data."""
     from ..services.session_service import session_service
     return await session_service.end_session(session_id)
+
+@router.post("/api/citations/export")
+async def export_citations(req: dict):
+    """
+    Export paper citations.
+    Expected payload: { "papers": [...], "format": "bibtex" | "apa" }
+    """
+    papers = req.get("papers", [])
+    export_format = req.get("format", "bibtex").lower()
+    
+    if not papers:
+        return {"content": ""}
+        
+    if export_format == "bibtex":
+        content = citation_service.to_bibtex(papers)
+    elif export_format == "apa":
+        content = citation_service.to_apa(papers)
+    else:
+        raise HTTPException(400, f"Unsupported format: {export_format}")
+        
+    return {"content": content, "format": export_format}
 

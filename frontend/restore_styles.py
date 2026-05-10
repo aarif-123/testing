@@ -1,4 +1,9 @@
-/* ═══════════════════════════════════════════════
+import os
+
+css_parts = []
+
+# Part 1: Lines 1-800 (from previous view_file)
+css_parts.append("""/* ═══════════════════════════════════════════════
    GraphRAG Research Assistant — Design System
    ═══════════════════════════════════════════════ */
 
@@ -798,7 +803,10 @@ body.sources-open .main {
     border-bottom: 1px solid var(--surface-glass-border);
     background: var(--bg-secondary);
     min-height: 52px;
-}
+}""")
+
+# Part 2: Lines 801-1600
+css_parts.append("""
 .mobile-menu-btn {
     display: none;
     background: none;
@@ -1597,7 +1605,10 @@ mark.smart-highlight {
     padding: 12px 16px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(20px);
+""")
 
+# Part 3: Lines 1601-2400
+css_parts.append("""
     transition: var(--transition-normal);
     pointer-events: auto;
 }
@@ -2398,7 +2409,10 @@ mark.smart-highlight {
 
 .health-overall {
     text-align: center;
+""")
 
+# Part 4: Lines 2401-3200
+css_parts.append("""
     padding: 12px;
     border-radius: var(--radius-sm);
     font-size: 14px;
@@ -3199,7 +3213,10 @@ textarea {
     background: var(--bg-hover);
     color: var(--text-secondary);
     border: 1px solid var(--surface-glass-border);
+""")
 
+# Part 5: Lines 3201-3725
+css_parts.append("""
     padding: 6px 12px;
     border-radius: 20px;
     font-size: 11px;
@@ -4059,180 +4076,11 @@ body.focus-mode::after {
 .chunk-markdown-content code { font-family: var(--font-mono); font-size: 11px; background: rgba(255, 255, 255, 0.1); padding: 2px 4px; border-radius: 3px; }
 .chunk-markdown-content a { color: var(--accent-cyan); text-decoration: none; }
 .chunk-markdown-content a:hover { text-decoration: underline; }
+""")
 
-/* ================= RESEARCH PAPER TABLE (Master Plan Feature 1) ================= */
-.papers-table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-    padding: 0;
-    animation: fadeIn 0.3s ease-in-out;
-}
+full_content = "".join(css_parts)
 
-.research-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
+with open("c:/Users/Mohmmed Aarif/projects/testing/frontend/styles.css", "w", encoding="utf-8") as f:
+    f.write(full_content)
 
-.research-table th {
-    background: var(--bg-tertiary);
-    color: var(--text-tertiary);
-    text-transform: uppercase;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    padding: 12px 16px;
-    text-align: left;
-    border-bottom: 1px solid var(--surface-glass-border);
-    position: sticky;
-    top: 48px;
-    z-index: 5;
-}
-
-.research-table tr:hover {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.research-table td {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--surface-glass-border);
-    vertical-align: top;
-    line-height: 1.5;
-}
-
-.table-cell-title {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.table-cell-meta {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 4px;
-}
-
-.table-tag {
-    display: inline-block;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--bg-accent);
-    color: var(--text-secondary);
-    font-size: 10px;
-    white-space: nowrap;
-}
-
-.table-tag.methodology { border-left: 2px solid var(--accent-purple); }
-.table-tag.dataset { border-left: 2px solid var(--accent-cyan); }
-.table-tag.finding { border-left: 2px solid var(--accent-emerald); }
-
-.quality-badge {
-    padding: 2px 6px;
-    border-radius: 10px;
-    font-weight: 800;
-    font-size: 10px;
-}
-.quality-high { color: var(--accent-emerald); background: rgba(52, 211, 153, 0.1); }
-.quality-mid { color: var(--accent-amber); background: rgba(251, 191, 36, 0.1); }
-
-.papers-toolbar .search-input-wrapper input:focus {
-    outline: none;
-    border-color: var(--primary-light);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
-}
-
-/* ================= VISUALS GALLERY & CHARTS ================= */
-.visuals-gallery-layout {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 16px;
-    animation: fadeIn 0.4s ease-out;
-}
-
-.visual-item-card {
-    background: var(--bg-paper);
-    border: 1px solid var(--surface-glass-border);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.visual-item-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary-light);
-}
-
-.visual-item-header {
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.03);
-    border-bottom: 1px solid var(--surface-glass-border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.visual-item-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.visual-item-type {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--bg-accent);
-    color: var(--text-tertiary);
-}
-
-.visual-item-content {
-    padding: 16px;
-    min-height: 100px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.visual-item-footer {
-    padding: 8px 16px;
-    background: rgba(0, 0, 0, 0.1);
-    font-size: 11px;
-    color: var(--text-muted);
-    border-top: 1px solid var(--surface-glass-border);
-}
-
-.chart-canvas-container {
-    width: 100%;
-    height: 250px;
-    position: relative;
-}
-
-.extracted-table-container {
-    width: 100%;
-    max-height: 300px;
-    overflow: auto;
-}
-
-.extracted-table-container table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 11px;
-}
-
-.extracted-table-container th {
-    background: var(--bg-tertiary);
-    padding: 8px;
-    text-align: left;
-    border-bottom: 1px solid var(--surface-glass-border);
-}
-
-.extracted-table-container td {
-    padding: 8px;
-    border-bottom: 1px solid var(--surface-glass-border);
-}
+print("Styles.css fully restored.")

@@ -1,0 +1,225 @@
+
+<style>
+  * { box-sizing: border-box; }
+  .wrap { padding: 1.5rem 0; font-family: var(--font-sans); }
+  .tier-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; color: var(--color-text-tertiary); text-transform: uppercase; margin: 2rem 0 12px; display: flex; align-items: center; gap: 8px; }
+  .tier-label::after { content:''; flex:1; border-top: 0.5px solid var(--color-border-tertiary); }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .fcard { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.1rem; cursor: pointer; transition: border-color 0.15s; }
+  .fcard:hover { border-color: var(--color-border-secondary); }
+  .fcard.active { border: 2px solid #7F77DD; }
+  .fcard-icon { font-size: 20px; margin-bottom: 8px; }
+  .fcard-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 4px; }
+  .fcard-sub { font-size: 12px; color: var(--color-text-secondary); margin: 0; line-height: 1.4; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 500; border-radius: 20px; padding: 2px 8px; margin-top: 8px; }
+  .badge-purple { background: #EEEDFE; color: #3C3489; }
+  .badge-teal { background: #E1F5EE; color: #085041; }
+  .badge-coral { background: #FAECE7; color: #712B13; }
+  .badge-amber { background: #FAEEDA; color: #633806; }
+  .badge-blue { background: #E6F1FB; color: #0C447C; }
+  .detail-panel { background: var(--color-background-secondary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-top: 12px; display: none; }
+  .detail-panel.visible { display: block; }
+  .detail-title { font-size: 16px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 6px; }
+  .detail-body { font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 12px; }
+  .detail-why { font-size: 12px; color: var(--color-text-tertiary); font-style: italic; }
+  .ask-btn { display: inline-block; font-size: 12px; margin-top: 12px; color: #534AB7; cursor: pointer; background: none; border: 0.5px solid #AFA9EC; border-radius: var(--border-radius-md); padding: 4px 12px; }
+  .ask-btn:hover { background: #EEEDFE; }
+  .impact-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 1.5rem; }
+  .imp-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem; text-align: center; }
+  .imp-num { font-size: 22px; font-weight: 500; }
+  .imp-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only">Aether v8 — proposed feature roadmap with 15 high-impact additions</h2>
+
+  <div class="impact-row">
+    <div class="imp-card">
+      <div class="imp-num" style="color:#534AB7">15</div>
+      <div class="imp-lbl">New features</div>
+    </div>
+    <div class="imp-card">
+      <div class="imp-num" style="color:#0F6E56">5</div>
+      <div class="imp-lbl">Moats built</div>
+    </div>
+    <div class="imp-card">
+      <div class="imp-num" style="color:#854F0B">3</div>
+      <div class="imp-lbl">Zero competitors have all</div>
+    </div>
+  </div>
+
+  <p style="font-size:12px; color: var(--color-text-tertiary); margin: 0 0 4px;">Click any card to expand its design spec.</p>
+
+  <div class="tier-label">Tier 1 — unfair advantages (build first)</div>
+
+  <div class="feature-grid">
+    <div class="fcard" onclick="toggle(this, 'claim-map')">
+      <div class="fcard-icon"><i class="ti ti-network" aria-hidden="true" style="color:#534AB7"></i></div>
+      <div class="fcard-title">Claim conflict map</div>
+      <div class="fcard-sub">Live graph showing where papers disagree with each other</div>
+      <span class="badge badge-purple">New surface</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'research-agent')">
+      <div class="fcard-icon"><i class="ti ti-robot" aria-hidden="true" style="color:#534AB7"></i></div>
+      <div class="fcard-title">Autonomous research agent</div>
+      <div class="fcard-sub">Set a question; agent plans, searches, and delivers a report while you sleep</div>
+      <span class="badge badge-purple">Async mode</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'hypothesis')">
+      <div class="fcard-icon"><i class="ti ti-bulb" aria-hidden="true" style="color:#534AB7"></i></div>
+      <div class="fcard-title">Hypothesis generator</div>
+      <div class="fcard-sub">Identifies white-space in the literature and proposes testable hypotheses</div>
+      <span class="badge badge-purple">AI-native</span>
+    </div>
+  </div>
+
+  <div id="claim-map" class="detail-panel">
+    <div class="detail-title">Claim conflict map</div>
+    <div class="detail-body">Parse every indexed paper's key claims and embed them alongside citation edges. When two papers make opposing claims about the same variable (e.g. "dropout improves generalization" vs. "dropout harms low-data regimes"), surface a conflict node in the knowledge graph view. Researchers click conflicts to see both sides side-by-side with AI-mediated synthesis. Color-code by resolution status: unresolved (amber), partially reconciled (blue), consensus reached (teal).</div>
+    <div class="detail-why">No academic tool does this. Elicit, Semantic Scholar, and ResearchRabbit all show agreement networks — not disagreement topology. This makes Aether the only tool for adversarial literature review.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the conflict map UI for Aether in detail — node types, colors, filtering controls')">↗ Design the conflict map UI →</button>
+  </div>
+
+  <div id="research-agent" class="detail-panel">
+    <div class="detail-title">Autonomous research agent</div>
+    <div class="detail-body">A background job system where a researcher submits a question with a depth setting (Quick / Standard / Deep). The agent decomposes into sub-questions, runs parallel graph queries, validates sources, synthesizes a structured report, and notifies the user via a badge on return. The Queue tab becomes the agent job manager. Reports land directly in Notebooks with citations pre-linked. Support agent chaining: "after this finishes, run a gap analysis on the output."</div>
+    <div class="detail-why">Perplexity does async search. No research tool does async synthesis with verification + notebook delivery. This collapses a 4-hour manual workflow to a single submission.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the async research agent job queue UI for Aether — submission form, status states, result delivery')">↗ Design the agent queue UI →</button>
+  </div>
+
+  <div id="hypothesis" class="detail-panel">
+    <div class="detail-title">Hypothesis generator</div>
+    <div class="detail-body">After a researcher has accumulated 10+ papers in a Collection, trigger an analysis mode that maps the conceptual space of studied variables, finds under-explored intersections, and proposes 3–5 novel hypotheses with supporting literature and a suggested methodology sketch. Each hypothesis links to which gap in the graph it addresses. Researchers can accept (sends to Notebook), reject, or ask the agent to refine. Track accepted hypotheses in a dedicated "Research Log" with timestamps — building a personal intellectual history.</div>
+    <div class="detail-why">This is the holy grail feature for academic users and exists nowhere. It turns Aether from a retrieval tool into a creative research partner.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the hypothesis generator panel — output format, accept/reject flow, research log')">↗ Design the hypothesis panel →</button>
+  </div>
+
+  <div class="tier-label">Tier 2 — deep moats (high retention)</div>
+
+  <div class="feature-grid">
+    <div class="fcard" onclick="toggle(this, 'collab')">
+      <div class="fcard-icon"><i class="ti ti-users" aria-hidden="true" style="color:#085041"></i></div>
+      <div class="fcard-title">Shared research rooms</div>
+      <div class="fcard-sub">Real-time multiplayer workspace — annotate, highlight, and chat over the same canvas</div>
+      <span class="badge badge-teal">Collaboration</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'pdf-lens')">
+      <div class="fcard-icon"><i class="ti ti-file-search" aria-hidden="true" style="color:#085041"></i></div>
+      <div class="fcard-title">PDF deep lens</div>
+      <div class="fcard-sub">Upload any PDF; Aether indexes it, extracts figures, and adds it to your graph instantly</div>
+      <span class="badge badge-teal">Ingestion</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'evidence')">
+      <div class="fcard-icon"><i class="ti ti-shield-check" aria-hidden="true" style="color:#085041"></i></div>
+      <div class="fcard-title">Evidence strength meter</div>
+      <div class="fcard-sub">Per-claim scoring: sample size, replication count, methodology quality</div>
+      <span class="badge badge-teal">Trust layer</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'zotero')">
+      <div class="fcard-icon"><i class="ti ti-plug" aria-hidden="true" style="color:#085041"></i></div>
+      <div class="fcard-title">Reference manager sync</div>
+      <div class="fcard-sub">Two-way sync with Zotero and Mendeley — your library becomes Aether's memory</div>
+      <span class="badge badge-teal">Integration</span>
+    </div>
+  </div>
+
+  <div id="collab" class="detail-panel">
+    <div class="detail-title">Shared research rooms</div>
+    <div class="detail-body">A "Room" is a shared Aether session with a unique URL. Participants see each other's cursors in the Drafting Canvas, can highlight chat responses and attach sticky notes, and co-manage a shared Reading Queue. One member's graph query results are visible to all. Roles: Owner, Editor, Viewer. Add a threaded comment system on any cited paper — turning Aether into a lab's shared research memory, not just one person's tool. This creates the strongest retention mechanism possible: switching costs go up dramatically when a whole team is embedded.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the shared research room — presence indicators, permissions UI, collaborative annotation layer')">↗ Design collaboration layer →</button>
+  </div>
+
+  <div id="pdf-lens" class="detail-panel">
+    <div class="detail-title">PDF deep lens</div>
+    <div class="detail-body">Drag any PDF (preprint, proprietary report, thesis) into Aether. It runs OCR + semantic chunking, extracts figures with captions as image nodes in the graph, and identifies methodology sections for the gap analysis engine. The paper is tagged as "private" (not shared to global index). Figure extraction is a killer differentiator — researchers constantly lose track of which paper contained which diagram. Store extracted figures in Collections with back-links to the source page.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the PDF upload + figure extraction experience — upload flow, figure gallery view, graph integration')">↗ Design PDF lens UI →</button>
+  </div>
+
+  <div id="evidence" class="detail-panel">
+    <div class="detail-title">Evidence strength meter</div>
+    <div class="detail-body">For every claim Aether surfaces, calculate an evidence score (0–100) derived from: number of papers supporting it, combined sample size, whether replications exist, recency weight, and methodology classification (RCT > observational > theoretical). Show a five-segment bar beside each answer. Researchers can click to see the breakdown. In the Citation Manager, add an "Evidence score" column to the bibliography. This lets a researcher immediately spot which claims are shaky — a critical need in fast-moving fields like ML where preprints dominate.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the evidence strength meter component — visual bar, score breakdown modal, citation manager column')">↗ Design evidence meter →</button>
+  </div>
+
+  <div id="zotero" class="detail-panel">
+    <div class="detail-title">Reference manager sync</div>
+    <div class="detail-body">OAuth connection to Zotero and Mendeley APIs. On first connect, import the researcher's full library into Aether Collections with tags preserved. Any paper saved in Aether auto-exports to their connected library. This removes the "I already have a system" objection — Aether becomes additive, not a replacement. Bonus: the imported library seeds the knowledge graph with the researcher's existing domain expertise, making Aether's recommendations immediately more relevant to their specific niche from session one.</div>
+    <button class="ask-btn" onclick="sendPrompt('Design the Zotero/Mendeley sync onboarding flow and settings panel for Aether')">↗ Design sync onboarding →</button>
+  </div>
+
+  <div class="tier-label">Tier 3 — polish & power-user surface</div>
+
+  <div class="feature-grid">
+    <div class="fcard" onclick="toggle(this, 'memory')">
+      <div class="fcard-icon"><i class="ti ti-brain" aria-hidden="true" style="color:#854F0B"></i></div>
+      <div class="fcard-title">Researcher memory profile</div>
+      <div class="fcard-sub">Aether learns your domain, writing style, and recurring interests across sessions</div>
+      <span class="badge badge-amber">Personalization</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'voice')">
+      <div class="fcard-icon"><i class="ti ti-microphone" aria-hidden="true" style="color:#854F0B"></i></div>
+      <div class="fcard-title">Voice research mode</div>
+      <div class="fcard-sub">Dictate questions, get spoken summaries — eyes-free research while reading papers</div>
+      <span class="badge badge-amber">Multimodal</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'api')">
+      <div class="fcard-icon"><i class="ti ti-code" aria-hidden="true" style="color:#854F0B"></i></div>
+      <div class="fcard-title">Aether public API</div>
+      <div class="fcard-sub">Expose graph queries and verified answers via REST — institutions build on top</div>
+      <span class="badge badge-amber">Platform play</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'journal')">
+      <div class="fcard-icon"><i class="ti ti-send" aria-hidden="true" style="color:#854F0B"></i></div>
+      <div class="fcard-title">Journal fit scorer</div>
+      <div class="fcard-sub">Paste your abstract — Aether ranks the top 10 journals by topical fit and impact</div>
+      <span class="badge badge-amber">Publishing</span>
+    </div>
+    <div class="fcard" onclick="toggle(this, 'audit')">
+      <div class="fcard-icon"><i class="ti ti-list-check" aria-hidden="true" style="color:#854F0B"></i></div>
+      <div class="fcard-title">Methodology audit</div>
+      <div class="fcard-sub">Detects statistical red flags in cited papers: p-hacking signals, small N, missing controls</div>
+      <span class="badge badge-amber">Quality guard</span>
+    </div>
+  </div>
+
+  <div id="memory" class="detail-panel">
+    <div class="detail-title">Researcher memory profile</div>
+    <div class="detail-body">A persistent profile that tracks: your primary research domain (inferred from queries), frequently cited authors, preferred citation format, writing vocabulary (learned from Notebook drafts), and ongoing research threads. This profile seeds every new chat session with a system prompt that contextualizes your work. After 5 sessions, Aether proactively surfaces newly published papers in your domain without being asked. The profile is visible and editable in Settings — researchers must own their data.</div>
+  </div>
+
+  <div id="voice" class="detail-panel">
+    <div class="detail-title">Voice research mode</div>
+    <div class="detail-body">Web Speech API for input; TTS for Aether's responses with a research-optimized voice that reads citations as inline footnotes. A focus mode disables the visual UI and renders only a minimal waveform — designed for researchers who switch between reading physical papers and querying Aether. Voice commands: "save this to collections," "add to reading queue," "open timeline." This is the only research assistant designed for the physical-digital context switch that real researchers live in.</div>
+  </div>
+
+  <div id="api" class="detail-panel">
+    <div class="detail-title">Aether public API</div>
+    <div class="detail-body">REST endpoints for: graph query (returns cited answers + confidence scores), paper lookup by DOI, collection read/write, citation export. Priced per-call for institutions. This is the platform play that turns Aether from a SaaS into infrastructure — universities build custom research portals on top, journals use it for peer-review assistance, and it creates a data flywheel (more API queries → better graph coverage). Start with a 1000-call free tier to drive adoption.</div>
+  </div>
+
+  <div id="journal" class="detail-panel">
+    <div class="detail-title">Journal fit scorer</div>
+    <div class="detail-body">Paste a manuscript abstract. Aether embeds it, compares against a curated index of 10,000+ journals indexed by topic vectors, impact factor, acceptance rate, and average review time. Returns a ranked list with fit score, estimated acceptance probability, and a one-sentence rationale. Link directly to the journal's submission portal. This solves a painful post-research problem that no current tool addresses — researchers spend hours manually evaluating journals. Upsell opportunity: "Submit-ready check" reviews your full manuscript for scope alignment.</div>
+  </div>
+
+  <div id="audit" class="detail-panel">
+    <div class="detail-title">Methodology audit</div>
+    <div class="detail-body">For any paper in a researcher's library, run an automated red-flag scan: checks for p-values clustered just below 0.05 (p-hacking signal), sample sizes below field-specific thresholds, missing control groups, failure to mention pre-registration, and retraction status via Retraction Watch API. Outputs a methodology score with flagged issues. Researchers can run a batch audit on an entire Collection before submitting a systematic review. This builds deep trust — Aether is the only tool that tells you when to be skeptical of its own sources.</div>
+  </div>
+
+</div>
+
+<script>
+  function toggle(card, id) {
+    const panel = document.getElementById(id);
+    const isVisible = panel.classList.contains('visible');
+    document.querySelectorAll('.detail-panel').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.fcard').forEach(c => c.classList.remove('active'));
+    if (!isVisible) {
+      panel.classList.add('visible');
+      card.classList.add('active');
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+</script>

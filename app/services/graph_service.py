@@ -286,3 +286,52 @@ async def get_trending_papers(limit: int = 10) -> List[Dict]:
     except Exception as e:
         log.warning(f"get_trending_papers error: {e}")
         return []
+
+def generate_mermaid_graph(papers: List[Dict]) -> str:
+    """Generate Mermaid.js syntax for a citation/co-authorship network."""
+    if not papers:
+        return ""
+
+    lines = ["graph TD"]
+    # 1. Define nodes (shortened titles)
+    seen_ids = set()
+    for p in papers:
+        pid = p.get("research_id") or p.get("id") or p.get("source_id")
+        if not pid: continue
+        
+        # Sanitize title for Mermaid
+        title = p.get("title", "Unknown")
+        title_short = (title[:30] + "...") if len(title) > 33 else title
+        title_clean = title_short.replace('"', "'").replace("(", "[").replace(")", "]")
+        
+        # Node definition: ID["Title (Year)"]
+        year = p.get("year", "?")
+        lines.append(f'    {pid}["{title_clean} ({year})"]')
+        seen_ids.add(pid)
+
+    # 2. Define relationships (CITES)
+    for p in papers:
+        pid = p.get("research_id") or p.get("id") or p.get("source_id")
+        refs = p.get("references") or []
+        for ref_id in refs:
+            if ref_id in seen_ids:
+                lines.append(f"    {pid} --> {ref_id}")
+
+    # 3. Define co-authorship clusters (optional but adds value)
+    # For simplicity, we just link papers by same authors
+    author_map = {}
+    for p in papers:
+        pid = p.get("research_id") or p.get("id") or p.get("source_id")
+        authors = p.get("authors") or []
+        for author in authors:
+            if author not in author_map:
+                author_map[author] = []
+            author_map[author].append(pid)
+
+    for author, paper_ids in author_map.items():
+        if len(paper_ids) > 1:
+            # Connect papers by same author with a dotted line
+            for i in range(len(paper_ids) - 1):
+                lines.append(f"    {paper_ids[i]} -.- {paper_ids[i+1]}")
+
+    return "\n".join(lines)

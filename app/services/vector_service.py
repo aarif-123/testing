@@ -26,7 +26,10 @@ async def vector_search(
             return []
         except Exception as e:
             err_msg = str(e)
-            log.warning(f"Vector search failed ({label}): {err_msg}")
+            if "getaddrinfo failed" in err_msg or "11001" in err_msg:
+                log.error(f"[CRITICAL] DNS lookup failed for {label}. Check your internet connection or Supabase URL.")
+            else:
+                log.warning(f"Vector search failed ({label}): {err_msg}")
             
             # Fallback to keyword search for Store A if vector search fails/times out
             if label == "Store A Chunks":

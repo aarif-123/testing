@@ -45,10 +45,34 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown: Close connections
         log.info("Closing service connections...")
-        from .services.arxiv_mcp import arxiv_mcp
-        await arxiv_mcp.close()
-        await pool.close()
-        await close_redis()
+        
+        # Check if the loop is still alive and running
+        try:
+            loop = asyncio.get_running_loop()
+            if not loop.is_running():
+                log.warning("Event loop is not running. Skipping async cleanup.")
+                return
+        except RuntimeError:
+            log.warning("No running event loop found. Cleanup may be incomplete.")
+            return
+
+        # Perform cleanup with individual timeouts
+        try:
+            from .services.arxiv_mcp import arxiv_mcp
+            await asyncio.wait_for(arxiv_mcp.close(), timeout=5.0)
+        except Exception as e:
+            log.debug(f"ArXivMCP cleanup error: {e}")
+
+        try:
+            await asyncio.wait_for(pool.close(), timeout=5.0)
+        except Exception as e:
+            log.debug(f"DualPool cleanup error: {e}")
+
+        try:
+            await asyncio.wait_for(close_redis(), timeout=3.0)
+        except Exception as e:
+            log.debug(f"Redis cleanup error: {e}")
+
         log.info("Shutdown complete.")
 
 app = FastAPI(
@@ -114,7 +138,7 @@ async def health_full():
         "api": "ok",
         "redis": "ok",
         "vector_store": "ok",
-        "graph_store": "ok",
+        "graph_store": "ok" if settings.NEO4J_ENABLED and pool.neo4j_ok else ("disabled" if not settings.NEO4J_ENABLED else "error"),
         "arxiv_mcp": "ok"
     }
 

@@ -82,6 +82,20 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHistory();
     renderAttachmentTray();
     els.queryInput.focus();
+
+    // Ensure correct initial view (Chat)
+    const chatContainer = document.getElementById('chatContainer');
+    if (chatContainer) chatContainer.style.display = 'flex';
+    $$('.workspace-view').forEach(v => v.style.display = 'none');
+
+    if (window.mermaid) {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            securityLevel: 'loose',
+            fontFamily: 'Inter, sans-serif'
+        });
+    }
 });
 
 // Panel Resizer Logic
@@ -111,13 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.style.setProperty('--sources-width', newWidth + 'px');
         sourcesPanel.style.width = newWidth + 'px';
 
-        if (sourcesPanel.classList.contains('open') && window.lastGraphPapers) {
+        if (sourcesPanel.classList.contains('open') && window.forceGraphInstance) {
             clearTimeout(window.resizeGraphTimeout);
             window.resizeGraphTimeout = setTimeout(() => {
                 if (document.getElementById('tabGraph').classList.contains('active')) {
-                    renderGraph(window.lastGraphPapers);
+                    const width = document.getElementById('sourcesPanel').clientWidth - 40;
+                    window.forceGraphInstance.width(width);
                 }
-            }, 100);
+            }, 50);
         }
     });
 
@@ -166,6 +181,48 @@ function initEventListeners() {
     $$('.sources-tab').forEach(tab => {
         tab.addEventListener('click', () => switchSourceTab(tab.dataset.tab));
     });
+
+    // Workspace tabs (Phase 4: Split-pane UI Navigation)
+    $$('.workspace-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const workspace = tab.dataset.workspace;
+            switchWorkspace(workspace);
+        });
+    });
+
+    // Global workspace switcher
+    window.switchWorkspace = (workspace) => {
+        // Update active state on tabs
+        $$('.workspace-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.workspace === workspace);
+        });
+
+        // Hide all views
+        const chatContainer = document.getElementById('chatContainer');
+        const inputArea = document.querySelector('.input-area');
+        const allViews = $$('.workspace-view');
+        
+        allViews.forEach(v => v.style.display = 'none');
+
+        if (workspace === 'chat') {
+            chatContainer.style.display = 'flex';
+            inputArea.style.display = 'block';
+        } else {
+            chatContainer.style.display = 'none';
+            inputArea.style.display = 'none';
+            
+            const targetView = document.getElementById(`workspace${workspace.charAt(0).toUpperCase() + workspace.slice(1)}`);
+            if (targetView) targetView.style.display = 'flex';
+
+            // Trigger tool-specific rendering
+            if (workspace === 'queue' && window.ReadingQueue) ReadingQueue.render();
+            if (workspace === 'citations' && window.CitationManager) CitationManager.render();
+            if (workspace === 'collections' && window.CollectionsManager) CollectionsManager.render();
+            if (workspace === 'workflows' && window.renderWorkflows) renderWorkflows();
+            if (workspace === 'timeline' && window.TimelineManager) TimelineManager.render();
+            if (workspace === 'notebooks' && window.DraftingCanvasManager) DraftingCanvasManager.renderList();
+        }
+    };
 
     // Health modal
     els.healthBtn.addEventListener('click', showHealthModal);
@@ -245,8 +302,74 @@ function initEventListeners() {
         }
     });
 
+    const createNotebookBtn = document.getElementById('createNotebookBtn');
+    if (createNotebookBtn) {
+        createNotebookBtn.addEventListener('click', () => {
+            if (!window.lastGraphPapers || window.lastGraphPapers.length === 0) {
+                alert("You need papers in your active workspace graph to generate a notebook outline.");
+                return;
+            }
+            // Switch back to chat to see the generation
+            const chatTab = document.querySelector('.workspace-tab[data-workspace="chat"]');
+            if (chatTab) chatTab.click();
+            
+            els.queryInput.value = "Based on the retrieved papers, generate a structured Outline for a literature review or research notebook.";
+            handleInputChange();
+            sendQuery();
+        });
+    }
+
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    const draftingCanvas = document.getElementById('draftingCanvas');
+    if (saveDraftBtn && draftingCanvas) {
+        // Load on startup
+        draftingCanvas.value = localStorage.getItem('aether_draft') || '';
+        
+        saveDraftBtn.addEventListener('click', () => {
+            localStorage.setItem('aether_draft', draftingCanvas.value);
+            const originalText = saveDraftBtn.innerText;
+            saveDraftBtn.innerText = 'Saved!';
+            setTimeout(() => saveDraftBtn.innerText = originalText, 2000);
+        });
+        
+        // Auto-save every 30s
+        setInterval(() => {
+            if(draftingCanvas.value) localStorage.setItem('aether_draft', draftingCanvas.value);
+        }, 30000);
+    }
+
+    const exportMarkdownBtn = document.getElementById('exportMarkdownBtn');
+    if (exportMarkdownBtn && draftingCanvas) {
+        exportMarkdownBtn.addEventListener('click', () => {
+            const blob = new Blob([draftingCanvas.value], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `research_draft_${new Date().toISOString().split('T')[0]}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
     // Theme toggle
     const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) {
+        themeBtn.addEventListener('click', toggleTheme);
+    }
+
+    // Export Session (Phase 4: Citation Export)
+    const exportSessionBtn = document.getElementById('exportSessionBtn');
+    if (exportSessionBtn) {
+        exportSessionBtn.addEventListener('click', () => {
+            if (!window.lastGraphPapers || window.lastGraphPapers.length === 0) {
+                alert("No papers in the current workspace graph to export.");
+                return;
+            }
+            exportCitations(window.lastGraphPapers, 'bibtex');
+        });
+    }
     const themeIcon = document.getElementById('themeIcon');
 
     function updateThemeIcon(theme) {
@@ -310,6 +433,55 @@ function switchSourceTab(tabName) {
     $$('.sources-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
     $$('.sources-tab-content').forEach(c => c.classList.remove('active'));
     $(`#tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
+    
+    if (tabName === 'graph') {
+        const isMermaid = state.graphMode === 'mermaid';
+        document.getElementById('webglGraph').style.display = isMermaid ? 'none' : 'block';
+        document.getElementById('mermaidContainer').style.display = isMermaid ? 'block' : 'none';
+        
+        if (!isMermaid && window.forceGraphInstance) {
+            setTimeout(() => {
+                const width = document.getElementById('sourcesPanel').clientWidth - 40;
+                window.forceGraphInstance.width(width);
+            }, 50);
+        }
+    }
+}
+
+state.graphMode = 'network'; // 'network' or 'mermaid'
+
+function toggleGraphVisualization() {
+    state.graphMode = state.graphMode === 'network' ? 'mermaid' : 'network';
+    const btn = document.getElementById('toggleGraphMode');
+    if (btn) btn.innerText = state.graphMode === 'network' ? 'Switch to Semantic Map' : 'Switch to Network';
+    
+    const isMermaid = state.graphMode === 'mermaid';
+    document.getElementById('webglGraph').style.display = isMermaid ? 'none' : 'block';
+    const mContainer = document.getElementById('mermaidContainer');
+    mContainer.style.display = isMermaid ? 'block' : 'none';
+    
+    if (isMermaid) {
+        renderMermaidGraph();
+    } else if (window.forceGraphInstance) {
+        const width = document.getElementById('sourcesPanel').clientWidth - 40;
+        window.forceGraphInstance.width(width);
+    }
+}
+
+async function renderMermaidGraph() {
+    const data = state.lastResponse;
+    if (!data || !data.mermaid_graph) return;
+    
+    const container = document.getElementById('mermaidContainer');
+    container.innerHTML = '<div class="mermaid-loader">Rendering semantic map...</div>';
+    
+    try {
+        const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), data.mermaid_graph);
+        container.innerHTML = svg;
+    } catch (e) {
+        console.error('Mermaid render error:', e);
+        container.innerHTML = `<div class="error-msg">Failed to render semantic map: ${e.message}</div>`;
+    }
 }
 
 function setAttachMenuOpen(isOpen) {
@@ -441,10 +613,8 @@ function formatFileSize(sizeBytes) {
 }
 
 // D3 GRAPH ENGINE
+// WEBGL GRAPH ENGINE (force-graph)
 function renderGraph(papers) {
-    const svg = d3.select("#graphSvg");
-    svg.selectAll("*").remove();
-
     if (!papers || papers.length === 0) {
         document.getElementById('graphEmpty').style.display = 'flex';
         document.getElementById('graphContainer').style.display = 'none';
@@ -452,7 +622,8 @@ function renderGraph(papers) {
     }
 
     document.getElementById('graphEmpty').style.display = 'none';
-    document.getElementById('graphContainer').style.display = 'block';
+    const container = document.getElementById('graphContainer');
+    container.style.display = 'block';
 
     window.lastGraphPapers = papers;
 
@@ -460,17 +631,31 @@ function renderGraph(papers) {
     const legacyBtn = document.getElementById('timelineToggleBtn');
     if (legacyBtn) legacyBtn.remove();
 
+    // Remove legacy D3 SVG if it exists
+    const oldSvg = document.getElementById('graphSvg');
+    if (oldSvg) oldSvg.remove();
+
+    // Create or get WebGL container
+    let webglContainer = document.getElementById('webglGraph');
+    if (!webglContainer) {
+        webglContainer = document.createElement('div');
+        webglContainer.id = 'webglGraph';
+        // Insert before controls
+        const controls = document.querySelector('.graph-controls');
+        if (controls) {
+            container.insertBefore(webglContainer, controls);
+        } else {
+            container.appendChild(webglContainer);
+        }
+    }
+
+    // Clean up previous instance if exists to prevent memory leaks
+    if (window.forceGraphInstance) {
+        window.forceGraphInstance._destructor();
+    }
+
     const width = document.getElementById('sourcesPanel').clientWidth - 40;
     const height = 350;
-    const g = svg.append("g");
-
-    // Add zoom
-    const zoom = d3.zoom().scaleExtent([0.5, 4]).on("zoom", (event) => g.attr("transform", event.transform));
-    svg.call(zoom);
-
-    document.getElementById('resetGraph').onclick = () => {
-        svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
-    };
 
     const nodes = papers.map(p => ({
         id: p.id || p.title || `paper-${Math.random()}`,
@@ -478,103 +663,148 @@ function renderGraph(papers) {
         author: Array.isArray(p.authors) ? p.authors[0] : (p.author || 'Unknown'),
         domain: (Array.isArray(p.categories) && p.categories[0]) || p.domain || 'General',
         year: parseInt(p.year) || 2020,
-        radius: 8 + Math.min((p.citations || 5) / 2, 8)
+        val: 8 + Math.min((p.citations || 5) / 2, 8)
     }));
 
-    // Force-directed knowledge graph
     const links = [];
     for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
             if (nodes[i].domain === nodes[j].domain) {
-                links.push({ source: nodes[i].id, target: nodes[j].id, value: 1 });
+                links.push({ source: nodes[i].id, target: nodes[j].id });
             }
         }
     }
 
-    const simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.id).distance(160))
-        .force("charge", d3.forceManyBody().strength(-400))
-        .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => d.radius + 30));
+    const gData = { nodes, links };
 
-    // Link lines with gradient
-    const link = g.append("g")
-        .attr("stroke", "rgba(255,255,255,0.12)")
-        .attr("stroke-width", 1.5)
-        .selectAll("line")
-        .data(links)
-        .enter().append("line");
+    window.forceGraphInstance = ForceGraph()(webglContainer)
+        .width(width)
+        .height(height)
+        .graphData(gData)
+        .nodeRelSize(3)
+        .nodeVal(node => node.val)
+        .linkColor(() => 'rgba(255, 255, 255, 0.12)')
+        .linkWidth(1.5)
+        .onNodeHover(node => {
+            webglContainer.style.cursor = node ? 'pointer' : null;
+            window.forceGraphInstance.hoverNode = node || null;
+        })
+        .nodeCanvasObject((node, ctx, globalScale) => {
+            const label = node.title && node.title.length > 22 ? node.title.substring(0, 22) + "..." : (node.title || 'Untitled');
+            const fontSize = 10 / globalScale;
+            ctx.font = `600 ${fontSize}px Inter, sans-serif`;
+            
+            const radius = Math.sqrt(node.val) * 3;
+            const color = getColorForDomain(node.domain);
+            
+            // Draw glow ring
+            if (node === window.forceGraphInstance.hoverNode) {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, radius + (4 / globalScale), 0, 2 * Math.PI, false);
+                ctx.fillStyle = color;
+                ctx.globalAlpha = 0.6;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            } else {
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, radius + (4 / globalScale), 0, 2 * Math.PI, false);
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1 / globalScale;
+                ctx.globalAlpha = 0.25;
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
 
-    const node = g.append("g")
-        .selectAll("g")
-        .data(nodes)
-        .enter().append("g")
-        .call(d3.drag()
-            .on("start", (event, d) => {
-                if (!event.active) simulation.alphaTarget(0.3).restart();
-                d.fx = d.x; d.fy = d.y;
-            })
-            .on("drag", (event, d) => { d.fx = event.x; d.fy = event.y; })
-            .on("end", (event, d) => {
-                if (!event.active) simulation.alphaTarget(0);
-                d.fx = null; d.fy = null;
-            }));
+            // Draw node circle
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            // Draw stroke
+            ctx.lineWidth = (node === window.forceGraphInstance.hoverNode ? 3 : 2) / globalScale;
+            ctx.strokeStyle = node === window.forceGraphInstance.hoverNode ? '#a78bfa' : 'rgba(255,255,255,0.8)';
+            ctx.stroke();
 
-    // Glow ring
-    node.append("circle")
-        .attr("r", d => d.radius + 4)
-        .attr("fill", "none")
-        .attr("stroke", d => getColorForDomain(d.domain))
-        .attr("stroke-width", 1)
-        .style("opacity", 0.25);
+            // Draw text
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#e2e8f0'; 
+            ctx.shadowColor = 'rgba(0,0,0,0.9)';
+            ctx.shadowBlur = 4 / globalScale;
+            ctx.fillText(label, node.x, node.y + radius + (4 / globalScale));
+            ctx.shadowBlur = 0;
+        })
+        .nodeLabel(node => `<div style="background: var(--bg-elevated); padding: 8px; border-radius: 6px; border: 1px solid var(--surface-glass-border); font-family: var(--font-sans); color: var(--text-primary); z-index: 9999;">
+            <strong>${node.title}</strong><br>
+            <span style="color: var(--text-muted); font-size: 11px;">${node.author} (${node.year})</span>
+        </div>`);
 
-    // Main node circle
-    node.append("circle")
-        .attr("r", d => d.radius)
-        .attr("fill", d => getColorForDomain(d.domain))
-        .attr("stroke", "rgba(255,255,255,0.8)")
-        .attr("stroke-width", 2)
-        .style("cursor", "pointer");
+    // Apply physics tweaks
+    window.forceGraphInstance.d3Force('charge').strength(-200);
 
-    node.append("text")
-        .attr("dy", d => d.radius + 18)
-        .attr("text-anchor", "middle")
-        .style("fill", "var(--text-primary)")
-        .style("font-size", "10px")
-        .style("font-weight", "600")
-        .style("text-shadow", "0px 1px 4px rgba(0,0,0,0.9), 0px 0px 2px rgba(0,0,0,1)")
-        .text(d => (d.title && d.title.length > 22) ? d.title.substring(0, 22) + "..." : (d.title || 'Untitled'));
-
-    node.append("title").text(d => `${d.title}\n${d.author} (${d.year})`);
-
-    // Hover effects
-    node.on("mouseover", function () {
-        d3.select(this).select("circle:nth-child(2)").attr("stroke-width", 3).attr("stroke", "#a78bfa");
-        d3.select(this).select("circle:nth-child(1)").style("opacity", 0.6);
-    }).on("mouseout", function () {
-        d3.select(this).select("circle:nth-child(2)").attr("stroke-width", 2).attr("stroke", "rgba(255,255,255,0.8)");
-        d3.select(this).select("circle:nth-child(1)").style("opacity", 0.25);
-    });
-
-    simulation.on("tick", () => {
-        link.attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
-        node.attr("transform", d => `translate(${d.x},${d.y})`);
-    });
+    // Setup reset button
+    const resetBtn = document.getElementById('resetGraph');
+    if (resetBtn) {
+        resetBtn.onclick = () => {
+            window.forceGraphInstance.zoomToFit(750, 20);
+        };
+    }
 }
 
 function getColorForDomain(domain) {
-    const map = {
-        'Machine Learning': '#6366f1',
-        'Vision': '#14b8a6',
-        'NLP': '#f59e0b',
-        'Robotics': '#ef4444',
-        'Med-AI': '#ec4899'
-    };
-    return map[domain] || '#64748b';
+    if (!domain || domain === 'Unknown') return '#94a3b8'; // slate-400
+    
+    // Simple hash to color
+    let hash = 0;
+    for (let i = 0; i < domain.length; i++) {
+        hash = domain.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 70%, 65%)`;
 }
+
+// -------------------------------------------------------------------------
+// EXPORT & WORKSPACE UTILS
+// -------------------------------------------------------------------------
+
+async function exportCitations(papers, format = 'bibtex') {
+    try {
+        const res = await fetch(`${API_BASE}/api/citations/export`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ papers, format })
+        });
+        
+        const data = await res.json();
+        if (!data.content) return;
+
+        const blob = new Blob([data.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const ext = format === 'bibtex' ? 'bib' : 'txt';
+        a.download = `workspace-citations-${new Date().toISOString().split('T')[0]}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Export failed:', e);
+        alert('Failed to export citations.');
+    }
+}
+
+// Global Citation Manager for the UI
+window.CitationManager = {
+    exportAll: (format) => {
+        if (!window.lastGraphPapers || window.lastGraphPapers.length === 0) {
+            alert("No papers to export.");
+            return;
+        }
+        exportCitations(window.lastGraphPapers, format);
+    }
+};
 
 function updateSourcesPanel(data) {
     const chunksData = data.chunks || (data.source_nodes && data.source_nodes.evidence_chunks) || [];
@@ -649,51 +879,53 @@ function updateSourcesPanel(data) {
         : '<div class="sources-empty">No extracted knowledge found.</div>';
 
     // Papers
-    const paperList = document.getElementById('tabPapers');
-    
-    let compareBtnHtml = '';
-    if (papersData.length > 1) {
-        window.lastFetchedPapers = papersData;
-        compareBtnHtml = `<div style="margin-bottom: 15px; text-align: center;">
-            <button class="quick-action-btn" onclick="openCompareDrawer(window.lastFetchedPapers)" style="background: rgba(99, 102, 241, 0.2); color: white; border-color: var(--primary); padding: 8px 16px; font-size: 13px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-                Compare All Papers
-            </button>
-        </div>`;
+    // Papers (Master Plan Feature 1: Filterable Tables)
+    if (window.PaperTableManager) {
+        PaperTableManager.setData(papersData);
+    } else {
+        const paperList = document.getElementById('papersCardContainer') || document.getElementById('tabPapers');
+        if (paperList) {
+            paperList.innerHTML = papersData.length > 0
+                ? papersData.map(p => `
+                    <div class="source-card paper premium-card" 
+                         data-url="${p.url || ''}" 
+                         data-authors="${escapeHtml((p.authors || []).join(', '))}" 
+                         data-year="${p.year || ''}">
+                        <div class="card-title">${escapeHtml(p.title)}</div>
+                        <div class="card-meta">${escapeHtml(p.year || 'Unknown')}</div>
+                    </div>`).join('')
+                : '<div class="sources-empty">No papers identified.</div>';
+            
+            // Trigger enhancement for new cards
+            if (window.enhancePaperCards) {
+                setTimeout(enhancePaperCards, 50);
+            }
+        }
     }
 
-    paperList.innerHTML = compareBtnHtml + (papersData.length > 0
-        ? papersData.map(p => {
-            const authorsList = Array.isArray(p.authors) ? p.authors.join(', ') : (p.authors || p.author || 'Unknown');
-            const catList = Array.isArray(p.categories) && p.categories.length > 0 ? p.categories[0] : (p.domain || 'General');
-            const paperUrl = p.url ? `<a href="${escapeHtml(p.url)}" target="_blank" class="paper-url" rel="noopener noreferrer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> View Paper</a>` : '';
-            const paperId = p.id || p.title;
-            const isPinned = window.pinnedPapers && window.pinnedPapers.has(paperId);
-            return `
-            <div class="source-card paper premium-card" style="position:relative;">
-                <div class="paper-pin-checkbox ${isPinned ? 'pinned' : ''}" data-paper-id="${escapeHtml(paperId)}" onclick="togglePinPaper('${escapeHtml(paperId).replace(/'/g, "\\'")}')"
-                     title="Pin to compare">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                </div>
-                <div class="card-title">
-                    <span>${escapeHtml(p.title)}</span>
-                    ${paperUrl}
-                </div>
-                <div class="card-meta premium-meta">
-                    <span class="meta-author"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> ${escapeHtml(authorsList)}</span>
-                    <span class="meta-year"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> ${p.year || 'Unknown'}</span>
-                    <span class="domain-tag premium-tag">${escapeHtml(catList)}</span>
-                </div>
-                <div class="card-abstract full-abstract">${escapeHtml(p.abstract || 'No description provided.')}</div>
-            </div>
-            `;
-        }).join('')
-        : '<div class="sources-empty">No papers identified.</div>');
+    // Visuals Extraction (Master Plan Feature 2: Real Data Insights)
+    if (window.VisualsManager) {
+        VisualsManager.clear();
+        // 1. Extract existing tables/figures from chunks
+        chunksData.forEach(c => {
+            const text = c.chunk || c.text || c.content || '';
+            const title = c.title || c.paper_title || 'Unknown Paper';
+            VisualsManager.extractFromText(text, title);
+        });
+        // 2. Generate new charts from the real research network
+        if (window.ResearchChartEngine && papersData.length > 0) {
+            ResearchChartEngine.generateTimelineChart(papersData);
+            ResearchChartEngine.generateMethodologyChart(papersData);
+        }
+    }
 
     // Graph View
     if (papersData.length > 0) {
         renderGraph(papersData);
         renderTimeline(papersData);
+        if (data.mermaid_graph && state.graphMode === 'mermaid') {
+            renderMermaidGraph();
+        }
     }
 
     // Verification
@@ -844,7 +1076,13 @@ async function sendQuery() {
             min_similarity: els.minSim ? parseFloat(els.minSim.value) / 100 : 0.1,
             use_heavy: els.modelSelect ? els.modelSelect.value === 'heavy' : false,
             verify: els.verifyToggle ? els.verifyToggle.checked : true,
-            messages: state.messages
+            messages: state.messages,
+            workflow_config: {
+                use_vector_db: document.getElementById('vectorDbToggle') ? document.getElementById('vectorDbToggle').checked : true,
+                use_mcp_fetch: document.getElementById('mcpFetchToggle') ? document.getElementById('mcpFetchToggle').checked : true,
+                fallback_allowed: document.getElementById('fallbackToggle') ? document.getElementById('fallbackToggle').checked : true,
+                llm_provider: document.getElementById('providerSelect') ? document.getElementById('providerSelect').value : "groq"
+            }
         };
 
         const res = await fetch(`${API_BASE}/api/chat`, {
@@ -1283,6 +1521,9 @@ function formatMarkdown(text) {
     
     // Case B: Compact format "- Title (YYYY) [Citation]" as seen in surveys
     text = text.replace(/-\s+([^\n]+?)\s+\((\d{4})\)\s*(\[\d+\]|\[N\])/g, '- **$1** <span class="paper-year">($2)</span> $3');
+
+    // Case C: Format ArXiv URLs if present in the text to be clean buttons/links
+    text = text.replace(/(https?:\/\/arxiv\.org\/abs\/\d+\.\d+)/g, '<a href="$1" target="_blank" class="inline-arxiv-link"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:2px"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> ArXiv</a>');
 
     // 1. Extract and protect LaTeX math
     const mathBlocks = [];

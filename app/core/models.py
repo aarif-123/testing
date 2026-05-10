@@ -6,6 +6,12 @@ class ChatMessage(BaseModel):
     role: str
     content: str
 
+class WorkflowConfig(BaseModel):
+    llm_provider: str = Field("groq", description="Options: 'groq', 'local', 'gemini'")
+    use_vector_db: bool = Field(True, description="Enable vector DB semantic search")
+    use_mcp_fetch: bool = Field(True, description="Enable MCP direct arxiv fetch")
+    fallback_allowed: bool = Field(True, description="Allow falling back to MCP if vector DB fails")
+
 class ConversationRequest(BaseModel):
     messages: Optional[List[ChatMessage]] = Field(None)
     query: Optional[str] = Field(None, max_length=2000)
@@ -18,6 +24,8 @@ class ConversationRequest(BaseModel):
     filters: Optional[Dict[str, Any]] = None
     last_paper_context: Optional[str] = None
     session_id: Optional[str] = None
+    user_id: str = Field("default_user", description="Tenant ID for multi-tenant isolation")
+    workflow_config: Optional[WorkflowConfig] = Field(default_factory=WorkflowConfig)
 
     @model_validator(mode='after')
     def validate_content(self) -> 'ConversationRequest':

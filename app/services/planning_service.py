@@ -1,6 +1,6 @@
 import json
 import re
-from typing import List, Dict, Optional
+from typing import Any
 from ..core.config import settings
 from ..core.logging_config import log
 from ..core.models import QueryPlan
@@ -32,6 +32,8 @@ STEP 2 - CLASSIFY ROUTE (pick exactly one):
   "timeline"       -> chronological evolution of a topic across years.
   "survey"         -> broad synthesis of a research area.
   "rag"            -> explanation, analysis, synthesis of concepts.
+  "gap_analysis"   -> ✨NEW: Identifying unaddressed research questions or limitations across papers.
+  "methodology_validation" -> ✨NEW: Analyzing, critiquing, or validating research methodologies.
   "chitchat"       -> social or basic 101 definitions: "what is X?", greeting, thanks. Always pick this for basic definitions or general non-research talk.
   "deep_research"  -> ✨NEW: Fetch NEWEST papers from ArXiv MCP before answering.
   "ingest"         -> ✨NEW: Explicitly search and SAVE a paper to Store B.
